@@ -1,7 +1,7 @@
 # **Database Schema Generator**
 
 
-**Visualize MySQL/PostgreSQL schemas using Next.js + ReactFlow: [Demo](https://google.com)**  
+**Visualize MySQL/PostgreSQL schemas using Next.js + ReactFlow: [Demo](https://db-schemas-generator.vercel.app/)**  
 
 A mini web app that converts **JSON schema definitions** into interactive database diagrams. Built with:  
 - **Next.js** (App Router)  
