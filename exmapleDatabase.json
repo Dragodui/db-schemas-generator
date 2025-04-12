@@ -1,0 +1,130 @@
+{
+    "tables": [
+      {
+        "name": "users",
+        "columns": [
+          {
+            "name": "id",
+            "type": "INTEGER",
+            "autoIncrement": true,
+            "primaryKey": true,
+            "notNull": true,
+            "unique": true
+          },
+          {
+            "name": "username",
+            "type": "VARCHAR",
+            "length": 50,
+            "notNull": true,
+            "unique": true
+          },
+          {
+            "name": "email",
+            "type": "VARCHAR",
+            "length": 100,
+            "notNull": true,
+            "unique": true
+          },
+          {
+            "name": "created_at",
+            "type": "TIMESTAMP",
+            "default": "CURRENT_TIMESTAMP",
+            "notNull": true
+          }
+        ]
+      },
+      {
+        "name": "posts",
+        "columns": [
+          {
+            "name": "id",
+            "type": "INTEGER",
+            "autoIncrement": true,
+            "primaryKey": true,
+            "notNull": true,
+            "unique": true
+          },
+          {
+            "name": "user_id",
+            "type": "INTEGER",
+            "notNull": true
+          },
+          {
+            "name": "title",
+            "type": "VARCHAR",
+            "length": 200,
+            "notNull": true
+          },
+          {
+            "name": "content",
+            "type": "TEXT",
+            "notNull": true
+          },
+          {
+            "name": "created_at",
+            "type": "TIMESTAMP",
+            "default": "CURRENT_TIMESTAMP",
+            "notNull": true
+          }
+        ],
+        "foreignKeys": [
+          {
+            "column": "user_id",
+            "references": {
+              "table": "users",
+              "column": "id"
+            },
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE"
+          }
+        ]
+      },
+      {
+        "name": "comments",
+        "columns": [
+          {
+            "name": "id",
+            "type": "INTEGER",
+            "autoIncrement": true,
+            "primaryKey": true,
+            "notNull": true,
+            "unique": true
+          },
+          {
+            "name": "post_id",
+            "type": "INTEGER",
+            "notNull": true
+          },
+          {
+            "name": "author",
+            "type": "VARCHAR",
+            "length": 100,
+            "notNull": true
+          },
+          {
+            "name": "comment",
+            "type": "TEXT",
+            "notNull": true
+          },
+          {
+            "name": "created_at",
+            "type": "TIMESTAMP",
+            "default": "CURRENT_TIMESTAMP",
+            "notNull": true
+          }
+        ],
+        "foreignKeys": [
+          {
+            "column": "post_id",
+            "references": {
+              "table": "posts",
+              "column": "id"
+            },
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE"
+          }
+        ]
+      }
+    ]
+  }
+  
