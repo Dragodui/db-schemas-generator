@@ -7,6 +7,7 @@ import (
 
 	"github.com/Dragodui/db-schemas-generator/internal/config"
 	"github.com/Dragodui/db-schemas-generator/internal/logger"
+	"github.com/Dragodui/db-schemas-generator/internal/repository"
 	"github.com/go-chi/chi/v5"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -24,6 +25,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	// repos
+	userRepo := repository.NewUserRepository(db)
 
 	// router with test route
 	r := chi.NewRouter()
