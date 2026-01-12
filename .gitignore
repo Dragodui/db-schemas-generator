@@ -68,3 +68,5 @@ next-env.d.ts
 go.work
 
 # End of https://www.toptal.com/developers/gitignore/api/go
+
+.claude
