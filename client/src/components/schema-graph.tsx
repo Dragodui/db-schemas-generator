@@ -5,6 +5,7 @@ import { ReactFlow, Background, Controls, Edge, Node, useNodesState, useEdgesSta
 import '@xyflow/react/dist/style.css';
 import { useMemo, useState } from 'react';
 import { Switch } from './ui/switch';
+import { Key } from 'lucide-react';
 
 export default function SchemaGraph({ schema }: { schema: JSONSchema | null }) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -29,7 +30,7 @@ export default function SchemaGraph({ schema }: { schema: JSONSchema | null }) {
             {table.columns.map((col) => (
               <li key={col.name}>
                 {col.name}: {col.type}
-                {col.primaryKey ? ' 🔑' : ''}
+                {col.primaryKey ? <Key/> : ''}
               </li>
             ))}
           </ul>
