@@ -14,6 +14,12 @@ type Config struct {
 	ClientURL string
 }
 
+type SMTPConfig struct {
+	Host string
+	Port int
+	//TODO: implement this
+}
+
 func Load() *Config {
 	if err := godotenv.Load(); err != nil {
 		log.Println(".env file not found, using environment variables")

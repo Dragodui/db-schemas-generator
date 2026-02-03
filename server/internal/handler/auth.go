@@ -2,24 +2,26 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/Dragodui/db-schemas-generator/internal/middleware"
 	"github.com/Dragodui/db-schemas-generator/internal/model"
-	"github.com/Dragodui/db-schemas-generator/internal/repository"
+	"github.com/Dragodui/db-schemas-generator/internal/service"
 	"github.com/golang-jwt/jwt/v5"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthHandler struct {
-	userRepo  repository.UserRepository
+	authSvc   service.AuthService
+	userSvc   service.UserService
 	jwtSecret string
 }
 
-func NewAuthHandler(userRepo repository.UserRepository, jwtSecret string) *AuthHandler {
+func NewAuthHandler(authSvc service.AuthService, userSvc service.UserService, jwtSecret string) *AuthHandler {
 	return &AuthHandler{
-		userRepo:  userRepo,
+		authSvc:   authSvc,
+		userSvc:   userSvc,
 		jwtSecret: jwtSecret,
 	}
 }
@@ -52,32 +54,24 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	existing, _ := h.userRepo.FindByEmail(req.Email)
-	if existing != nil {
-		http.Error(w, `{"error":"email already registered"}`, http.StatusConflict)
-		return
+	if err := h.authSvc.Register(req.Email, req.Password, req.Name); err != nil {
+
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	user, err := h.userSvc.FindByEmail(req.Email)
 	if err != nil {
-		http.Error(w, `{"error":"failed to hash password"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error":"internal server error"}`, http.StatusInternalServerError)
 		return
 	}
 
-	user := &model.User{
-		Name:         req.Name,
-		Email:        req.Email,
-		PasswordHash: string(hash),
-	}
-
-	if err := h.userRepo.Create(user); err != nil {
-		http.Error(w, `{"error":"failed to create user"}`, http.StatusInternalServerError)
+	if user == nil {
+		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
 		return
 	}
 
 	token, err := h.generateToken(user.ID)
 	if err != nil {
-		http.Error(w, `{"error":"failed to generate token"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error":"internal server error"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -98,21 +92,16 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.userRepo.FindByEmail(req.Email)
-	if err != nil || user == nil {
-		http.Error(w, `{"error":"invalid credentials"}`, http.StatusUnauthorized)
-		return
-	}
+	user, err := h.authSvc.Login(req.Email, req.Password)
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		http.Error(w, `{"error":"invalid credentials"}`, http.StatusUnauthorized)
-		return
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error:%s"}`, err.Error()), http.StatusInternalServerError)
 	}
 
 	token, err := h.generateToken(user.ID)
+
 	if err != nil {
-		http.Error(w, `{"error":"failed to generate token"}`, http.StatusInternalServerError)
-		return
+		http.Error(w, fmt.Sprintf(`{"error:%s"}`, err.Error()), http.StatusInternalServerError)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -126,7 +115,7 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.userRepo.FindByID(userID)
+	user, err := h.userSvc.FindByID(userID)
 	if err != nil || user == nil {
 		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
 		return

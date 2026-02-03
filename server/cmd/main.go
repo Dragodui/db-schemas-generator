@@ -10,6 +10,7 @@ import (
 	"github.com/Dragodui/db-schemas-generator/internal/middleware"
 	"github.com/Dragodui/db-schemas-generator/internal/model"
 	"github.com/Dragodui/db-schemas-generator/internal/repository"
+	"github.com/Dragodui/db-schemas-generator/internal/service"
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -39,8 +40,11 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	schemaRepo := repository.NewSchemaRepository(db)
 
+	// services
+	userService := service.NewUserService(userRepo)
+	authService := service.NewAuthService(userRepo)
 	// handlers
-	authHandler := handler.NewAuthHandler(userRepo, cfg.JWTSecret)
+	authHandler := handler.NewAuthHandler(authService, userService, cfg.JWTSecret)
 	schemaHandler := handler.NewSchemaHandler(schemaRepo)
 	exportHandler := handler.NewExportHandler(schemaRepo)
 
