@@ -6,8 +6,7 @@ import { Button } from './ui/button';
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { JSONSchema } from '@/lib/types';
-import { useAuth } from '@/context/auth-context';
-import { api, Schema, SchemaData } from '@/lib/api';
+import { api, SchemaData } from '@/lib/api';
 import {
     Dialog,
     DialogContent,
@@ -23,7 +22,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from './ui/select';
-import { Switch } from './ui/switch';
 import {
     Collapsible,
     CollapsibleContent,
@@ -32,7 +30,6 @@ import {
 import {
     ChevronDown,
     ChevronRight,
-    Save,
     Download,
     Upload,
     Table,
@@ -46,44 +43,19 @@ interface AppSidebarProps {
     schema: JSONSchema | null;
     currentSchemaId?: number | null;
     setCurrentSchemaId?: (id: number | null) => void;
+    embedded?: boolean;
 }
 
-const AppSidebar = ({ setSchema, schema, currentSchemaId, setCurrentSchemaId }: AppSidebarProps) => {
-    const { isAuthenticated } = useAuth();
+const AppSidebar = ({ setSchema, schema, currentSchemaId, setCurrentSchemaId, embedded = false }: AppSidebarProps) => {
     const [jsonInput, setJsonInput] = useState<string>('');
     const [parsingError, setParsingError] = useState<boolean>(false);
     const [showJsonImport, setShowJsonImport] = useState(false);
-
-    // Save dialog state
-    const [saveDialogOpen, setSaveDialogOpen] = useState(false);
-    const [schemaName, setSchemaName] = useState('');
-    const [isPublic, setIsPublic] = useState(false);
-    const [saving, setSaving] = useState(false);
-    const [saveError, setSaveError] = useState('');
 
     // Export dialog state
     const [exportDialogOpen, setExportDialogOpen] = useState(false);
     const [exportFormat, setExportFormat] = useState<'mysql' | 'postgres' | 'mongo'>('postgres');
     const [exportResult, setExportResult] = useState<string | null>(null);
     const [exporting, setExporting] = useState(false);
-
-    // Load schema from localStorage if coming from dashboard
-    useEffect(() => {
-        const stored = localStorage.getItem('loadSchema');
-        if (stored) {
-            try {
-                const schemaData: Schema = JSON.parse(stored);
-                setSchema(schemaData.data as JSONSchema);
-                setJsonInput(JSON.stringify(schemaData.data, null, 2));
-                if (setCurrentSchemaId) {
-                    setCurrentSchemaId(schemaData.id);
-                }
-                localStorage.removeItem('loadSchema');
-            } catch (e) {
-                console.error('Failed to load schema from localStorage', e);
-            }
-        }
-    }, [setSchema, setCurrentSchemaId]);
 
     // Sync JSON input when schema changes from builder
     useEffect(() => {
@@ -132,46 +104,6 @@ const AppSidebar = ({ setSchema, schema, currentSchemaId, setCurrentSchemaId }: 
             setParsingError(true);
         }
     }
-
-    const handleSave = async () => {
-        if (!schema || !schemaName.trim()) return;
-
-        setSaving(true);
-        setSaveError('');
-
-        try {
-            const schemaData: SchemaData = {
-                tables: schema.tables.map(table => ({
-                    name: table.name,
-                    columns: table.columns.map(col => ({
-                        ...col,
-                        default: col.default != null ? String(col.default) : undefined,
-                    })),
-                    foreignKeys: table.foreignKeys,
-                }))
-            };
-
-            if (currentSchemaId) {
-                // Update existing schema
-                await api.updateSchema(currentSchemaId, {
-                    name: schemaName.trim(),
-                    data: schemaData,
-                    is_public: isPublic,
-                });
-            } else {
-                // Create new schema
-                const saved = await api.createSchema(schemaName.trim(), schemaData, isPublic);
-                if (setCurrentSchemaId) {
-                    setCurrentSchemaId(saved.id);
-                }
-            }
-            setSaveDialogOpen(false);
-        } catch (err) {
-            setSaveError(err instanceof Error ? err.message : 'Save failed');
-        } finally {
-            setSaving(false);
-        }
-    };
 
     const handleExport = async () => {
         if (!schema) return;
@@ -229,13 +161,8 @@ const AppSidebar = ({ setSchema, schema, currentSchemaId, setCurrentSchemaId }: 
     const columnCount = schema?.tables.reduce((acc, t) => acc + t.columns.length, 0) || 0;
     const fkCount = schema?.tables.reduce((acc, t) => acc + (t.foreignKeys?.length || 0), 0) || 0;
 
-    return (
+    const content = (
         <>
-            <Sidebar>
-                <SidebarHeader className='text-2xl font-bold p-4'>
-                    Schema Editor
-                </SidebarHeader>
-                <SidebarContent>
                     {/* Schema Stats */}
                     {schema && tableCount > 0 && (
                         <SidebarGroup>
@@ -263,18 +190,6 @@ const AppSidebar = ({ setSchema, schema, currentSchemaId, setCurrentSchemaId }: 
                     <SidebarGroup>
                         <SidebarGroupLabel className='text-lg mb-2'>Actions</SidebarGroupLabel>
                         <SidebarGroupContent className='space-y-2'>
-                            {isAuthenticated && schema && tableCount > 0 && (
-                                <Button
-                                    className='w-full'
-                                    onClick={() => {
-                                        setSchemaName('');
-                                        setSaveDialogOpen(true);
-                                    }}
-                                >
-                                    <Save className="h-4 w-4 mr-2" />
-                                    {currentSchemaId ? 'Update Schema' : 'Save Schema'}
-                                </Button>
-                            )}
                             {schema && tableCount > 0 && (
                                 <Button
                                     variant="outline"
@@ -376,53 +291,25 @@ const AppSidebar = ({ setSchema, schema, currentSchemaId, setCurrentSchemaId }: 
                             </SidebarGroupContent>
                         </SidebarGroup>
                     )}
-                </SidebarContent>
-            </Sidebar>
+        </>
+    );
 
-            {/* Save Dialog */}
-            <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>
-                            {currentSchemaId ? 'Update Schema' : 'Save Schema'}
-                        </DialogTitle>
-                        <DialogDescription>
-                            {currentSchemaId
-                                ? 'Update your existing schema'
-                                : 'Save your schema to access it later'
-                            }
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className='space-y-4'>
-                        <div>
-                            <label className='text-sm font-medium'>Schema Name</label>
-                            <Input
-                                value={schemaName}
-                                onChange={(e) => setSchemaName(e.target.value)}
-                                className='mt-1'
-                                placeholder='My Database Schema'
-                            />
-                        </div>
-                        <div className='flex items-center gap-3'>
-                            <Switch checked={isPublic} onCheckedChange={setIsPublic} />
-                            <label className='text-sm'>Make schema public</label>
-                        </div>
-                        {saveError && (
-                            <p className='text-red-500 text-sm'>{saveError}</p>
-                        )}
-                    </div>
-
-                    <DialogFooter>
-                        <Button variant='outline' onClick={() => setSaveDialogOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button onClick={handleSave} disabled={saving || !schemaName.trim()}>
-                            {saving ? 'Saving...' : 'Save'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+    return (
+        <>
+            {embedded ? (
+                <div className="p-4 space-y-4">
+                    {content}
+                </div>
+            ) : (
+                <Sidebar>
+                    <SidebarHeader className='text-2xl font-bold p-4'>
+                        Schema Editor
+                    </SidebarHeader>
+                    <SidebarContent>
+                        {content}
+                    </SidebarContent>
+                </Sidebar>
+            )}
 
             {/* Export Dialog */}
             <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
