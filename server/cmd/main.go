@@ -41,10 +41,13 @@ func main() {
 	schemaRepo := repository.NewSchemaRepository(db)
 
 	// services
+	mailerService := &service.SMTPMailer{
+		Config: cfg.SMTPConfig,
+	}
 	userService := service.NewUserService(userRepo)
-	authService := service.NewAuthService(userRepo)
+	authService := service.NewAuthService(userRepo, mailerService)
 	// handlers
-	authHandler := handler.NewAuthHandler(authService, userService, cfg.JWTSecret)
+	authHandler := handler.NewAuthHandler(authService, userService, cfg)
 	schemaHandler := handler.NewSchemaHandler(schemaRepo)
 	exportHandler := handler.NewExportHandler(schemaRepo)
 
@@ -73,6 +76,8 @@ func main() {
 		// auth routes
 		r.Post("/auth/register", authHandler.Register)
 		r.Post("/auth/login", authHandler.Login)
+		r.Post("/auth/resend-verification", authHandler.ResendVerification)
+		r.Get("/auth/verify", authHandler.VerifyEmail)
 
 		// public schemas
 		r.Get("/schemas/public", schemaHandler.GetPublic)

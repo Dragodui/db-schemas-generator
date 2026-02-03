@@ -14,10 +14,12 @@ type UserRepository interface {
 	FindByName(name string) (*model.User, error)
 	FindByEmail(email string) (*model.User, error)
 	SetVerifyToken(email, token string, expiresAt time.Time) error
+	VerifyTokenExists(token string) (bool, error)
 	VerifyEmail(token string) error
 	GetByResetToken(token string) (*model.User, error)
 	UpdatePassword(userID int, newHash string) error
 	SetResetToken(email, token string, expiresAt time.Time) error
+	Delete(id int) error
 }
 
 type userRepo struct {
@@ -71,6 +73,12 @@ func (r *userRepo) SetVerifyToken(email, token string, expiresAt time.Time) erro
 		}).Error
 }
 
+func (r *userRepo) VerifyTokenExists(token string) (bool, error) {
+	var count int64
+	err := r.db.Model(&model.User{}).Where("verify_token = ?", token).Count(&count).Error
+	return count > 0, err
+}
+
 func (r *userRepo) VerifyEmail(token string) error {
 	res := r.db.Model(&model.User{}).Where("verify_token = ? AND verify_expires_at > ?", token, time.Now()).Updates(map[string]interface{}{
 		"email_verified":    true,
@@ -112,4 +120,13 @@ func (r *userRepo) UpdatePassword(userID int, newHash string) error {
 			"reset_token":      nil,
 			"reset_expires_at": nil,
 		}).Error
+}
+
+func (r *userRepo) Delete(id int) error {
+	res := r.db.Delete(&model.User{}, id)
+	if res.RowsAffected == 0 {
+		return errors.New("user not found")
+	}
+
+	return res.Error
 }
