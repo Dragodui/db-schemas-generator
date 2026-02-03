@@ -7,8 +7,9 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { toPng } from 'html-to-image';
 import { SchemaBuilder } from "@/components/schema-builder";
-import { LayoutGrid, Code, PanelLeftClose, PanelLeft, Download, Plus, User, Check, Loader2, ChevronDown } from "lucide-react";
+import { LayoutGrid, Code, PanelLeftClose, PanelLeft, Download, Plus, User, Check, Loader2, ChevronDown, Share2 } from "lucide-react";
 import { api, Schema, SchemaData } from "@/lib/api";
+import { ShareDialog } from "@/components/share-dialog";
 import { useAuth } from "@/context/auth-context";
 import Link from "next/link";
 import {
@@ -32,6 +33,8 @@ export default function Home() {
   const [isPanelOpen, setIsPanelOpen] = useState(true);
   const [userSchemas, setUserSchemas] = useState<Schema[]>([]);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [currentSchemaFull, setCurrentSchemaFull] = useState<Schema | null>(null);
   const graphRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedSchemaRef = useRef<string>('');
@@ -50,6 +53,7 @@ export default function Home() {
         setSchema(schemaData.data as JSONSchema);
         setCurrentSchemaId(schemaData.id);
         setCurrentSchemaName(schemaData.name);
+        setCurrentSchemaFull(schemaData);
         lastSavedSchemaRef.current = JSON.stringify({ schema: schemaData.data, name: schemaData.name });
         localStorage.removeItem('loadSchema');
       } catch (e) {
@@ -112,7 +116,11 @@ export default function Home() {
             ...col,
             default: col.default != null ? String(col.default) : undefined,
           })),
-          foreignKeys: table.foreignKeys,
+          foreignKeys: table.foreignKeys?.map(fk => ({
+            ...fk,
+            relationType: fk.relationType,
+          })),
+          color: table.color,
         }))
       };
 
@@ -142,6 +150,7 @@ export default function Home() {
     setSchema({ tables: [] });
     setCurrentSchemaId(null);
     setCurrentSchemaName('Untitled Schema');
+    setCurrentSchemaFull(null);
     lastSavedSchemaRef.current = '';
     setSaveStatus('saved');
   };
@@ -150,9 +159,20 @@ export default function Home() {
     setSchema(schemaItem.data as JSONSchema);
     setCurrentSchemaId(schemaItem.id);
     setCurrentSchemaName(schemaItem.name);
+    setCurrentSchemaFull(schemaItem);
     lastSavedSchemaRef.current = JSON.stringify({ schema: schemaItem.data, name: schemaItem.name });
     setSaveStatus('saved');
   };
+
+  // Update full schema data after save
+  useEffect(() => {
+    if (currentSchemaId && saveStatus === 'saved') {
+      const schemaInList = userSchemas.find(s => s.id === currentSchemaId);
+      if (schemaInList) {
+        setCurrentSchemaFull(schemaInList);
+      }
+    }
+  }, [userSchemas, currentSchemaId, saveStatus]);
 
   const exportToImage = useCallback(async () => {
     if (!graphRef.current) return;
@@ -233,6 +253,16 @@ export default function Home() {
                       className="h-9 text-sm font-medium"
                       placeholder="Schema name..."
                     />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShareDialogOpen(true)}
+                      className="h-9 px-3 shrink-0"
+                      disabled={!currentSchemaId}
+                      title="Share schema"
+                    >
+                      <Share2 className="h-4 w-4" />
+                    </Button>
                     <Button variant="outline" size="sm" onClick={createNewSchema} className="h-9 px-3 shrink-0">
                       <Plus className="h-4 w-4" />
                     </Button>
@@ -351,6 +381,14 @@ export default function Home() {
             <SchemaGraph schema={schema} onSchemaChange={setSchema} />
           </div>
         </div>
+
+        {/* Share Dialog */}
+        <ShareDialog
+          open={shareDialogOpen}
+          onOpenChange={setShareDialogOpen}
+          schema={currentSchemaFull}
+          onUpdate={loadUserSchemas}
+        />
       </div>
   );
 }

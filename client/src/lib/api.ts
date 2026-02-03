@@ -97,14 +97,33 @@ class ApiClient {
     return this.request<Schema[]>('/schemas/public');
   }
 
-  async getSchema(id: number) {
-    return this.request<Schema>(`/schemas/${id}`);
+  async getSchema(id: number, shareToken?: string) {
+    const url = shareToken ? `/schemas/${id}?token=${shareToken}` : `/schemas/${id}`;
+    return this.request<SchemaWithAccess>(url);
   }
 
-  async updateSchema(id: number, updates: Partial<{ name: string; data: SchemaData; is_public: boolean }>) {
-    return this.request<Schema>(`/schemas/${id}`, {
+  async getSchemaByShareToken(token: string) {
+    return this.request<SchemaWithAccess>(`/shared/${token}`);
+  }
+
+  async updateSchema(id: number, updates: Partial<{ name: string; data: SchemaData; is_public: boolean }>, shareToken?: string) {
+    const url = shareToken ? `/schemas/${id}?token=${shareToken}` : `/schemas/${id}`;
+    return this.request<Schema>(url, {
       method: 'PUT',
       body: JSON.stringify(updates),
+    });
+  }
+
+  async updateShareSettings(id: number, access: 'none' | 'view' | 'edit') {
+    return this.request<ShareResponse>(`/schemas/${id}/share`, {
+      method: 'PUT',
+      body: JSON.stringify({ access }),
+    });
+  }
+
+  async regenerateShareToken(id: number) {
+    return this.request<ShareResponse>(`/schemas/${id}/share/regenerate`, {
+      method: 'POST',
     });
   }
 
@@ -182,6 +201,7 @@ export interface TableData {
   columns: ColumnData[];
   foreignKeys?: ForeignKeyData[];
   engine?: string;
+  color?: string;
 }
 
 export interface ColumnData {
@@ -201,6 +221,7 @@ export interface ForeignKeyData {
     table: string;
     column: string;
   };
+  relationType?: '1:1' | '1:n' | 'n:1' | 'n:m';
   onDelete?: string;
   onUpdate?: string;
 }
@@ -211,8 +232,20 @@ export interface Schema {
   name: string;
   data: SchemaData;
   is_public: boolean;
+  share_token?: string;
+  share_access?: 'none' | 'view' | 'edit';
   created_at: string;
   updated_at: string;
+}
+
+export interface SchemaWithAccess extends Schema {
+  access_level: 'owner' | 'edit' | 'view';
+}
+
+export interface ShareResponse {
+  share_token: string;
+  share_access: string;
+  share_url: string;
 }
 
 export const api = new ApiClient();

@@ -12,6 +12,7 @@ type SchemaRepository interface {
 	FindByID(id int) (*model.Schema, error)
 	FindByUserID(userID int) ([]model.Schema, error)
 	FindPublic() ([]model.Schema, error)
+	FindByShareToken(token string) (*model.Schema, error)
 	Update(s *model.Schema) error
 	Delete(id int, userID int) error
 }
@@ -47,6 +48,15 @@ func (r *schemaRepo) FindPublic() ([]model.Schema, error) {
 	var schemas []model.Schema
 	err := r.db.Where("is_public = ?", true).Order("updated_at DESC").Find(&schemas).Error
 	return schemas, err
+}
+
+func (r *schemaRepo) FindByShareToken(token string) (*model.Schema, error) {
+	var s model.Schema
+	err := r.db.Where("share_token = ?", token).First(&s).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	return &s, err
 }
 
 func (r *schemaRepo) Update(s *model.Schema) error {

@@ -73,10 +73,23 @@ func main() {
 		// public schemas
 		r.Get("/schemas/public", schemaHandler.GetPublic)
 
+		// shared schema access (by token)
+		r.Get("/shared/{token}", schemaHandler.GetByShareToken)
+
 		// export without auth (direct)
 		r.Post("/export", exportHandler.ExportDirect)
 
-		// protected routes
+		// routes with optional auth (for share token access)
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.OptionalJWTAuth(cfg.JWTSecret))
+
+			// Get schema - can be accessed by owner, share token, or if public
+			r.Get("/schemas/{id}", schemaHandler.GetByID)
+			// Update schema - owner or share token with edit access
+			r.Put("/schemas/{id}", schemaHandler.Update)
+		})
+
+		// protected routes (require auth)
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.JWTAuth(cfg.JWTSecret))
 
@@ -86,9 +99,11 @@ func main() {
 			// schemas CRUD
 			r.Post("/schemas", schemaHandler.Create)
 			r.Get("/schemas", schemaHandler.GetMySchemas)
-			r.Get("/schemas/{id}", schemaHandler.GetByID)
-			r.Put("/schemas/{id}", schemaHandler.Update)
 			r.Delete("/schemas/{id}", schemaHandler.Delete)
+
+			// share settings
+			r.Put("/schemas/{id}/share", schemaHandler.UpdateShare)
+			r.Post("/schemas/{id}/share/regenerate", schemaHandler.RegenerateShareToken)
 
 			// export
 			r.Get("/schemas/{id}/export", exportHandler.ExportSchema)

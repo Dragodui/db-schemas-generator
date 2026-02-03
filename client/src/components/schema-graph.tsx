@@ -1,6 +1,6 @@
 'use client';
 
-import { JSONSchema, ForeignKey, RelationType } from '@/lib/types';
+import { JSONSchema, ForeignKey, RelationType, TABLE_COLORS } from '@/lib/types';
 import {
   ReactFlow,
   Background,
@@ -20,7 +20,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { useMemo, useState, useCallback } from 'react';
 import { Switch } from './ui/switch';
-import { Key } from 'lucide-react';
+import { Key, Palette } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -36,20 +36,64 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 
 interface TableNodeData {
   label: string;
   tableName: string;
   columns: { name: string; type: string; primaryKey?: boolean }[];
+  color?: string;
+  onColorChange?: (tableName: string, color: string) => void;
 }
 
 // Custom Table Node with handles for each column
 function TableNode({ data, id }: NodeProps<Node<TableNodeData>>) {
+  const tableColor = data.color || TABLE_COLORS[0].value;
+
   return (
-    <div className="bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 rounded-lg shadow-lg min-w-[200px]">
+    <div className="bg-white dark:bg-gray-800 border-2 rounded-lg shadow-lg min-w-[200px]" style={{ borderColor: tableColor }}>
       {/* Table Header */}
-      <div className="bg-primary text-primary-foreground px-3 py-2 rounded-t-md font-bold text-sm">
-        {data.tableName}
+      <div
+        className="px-3 py-2 rounded-t-md font-bold text-sm flex items-center justify-between"
+        style={{ backgroundColor: tableColor, color: 'white' }}
+      >
+        <span>{data.tableName}</span>
+        {data.onColorChange && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="p-1 rounded hover:bg-white/20 transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Palette className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="p-2" align="end">
+              <div className="grid grid-cols-5 gap-1">
+                {TABLE_COLORS.map((color) => (
+                  <button
+                    key={color.value}
+                    className="w-6 h-6 rounded-md border-2 transition-transform hover:scale-110"
+                    style={{
+                      backgroundColor: color.value,
+                      borderColor: tableColor === color.value ? 'white' : 'transparent',
+                      boxShadow: tableColor === color.value ? '0 0 0 2px black' : 'none'
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      data.onColorChange?.(data.tableName, color.value);
+                    }}
+                    title={color.name}
+                  />
+                ))}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       {/* Columns */}
@@ -169,6 +213,22 @@ export default function SchemaGraph({ schema, onSchemaChange }: SchemaGraphProps
   }>({ open: false, connection: null });
   const [selectedRelationType, setSelectedRelationType] = useState<RelationType>('1:n');
 
+  // Handle table color change
+  const handleColorChange = useCallback((tableName: string, color: string) => {
+    if (!schema || !onSchemaChange) return;
+
+    const updatedSchema: JSONSchema = {
+      tables: schema.tables.map((table) => {
+        if (table.name === tableName) {
+          return { ...table, color };
+        }
+        return table;
+      }),
+    };
+
+    onSchemaChange(updatedSchema);
+  }, [schema, onSchemaChange]);
+
   // Build nodes and edges from schema
   useMemo(() => {
     if (!schema) {
@@ -203,6 +263,8 @@ export default function SchemaGraph({ schema, onSchemaChange }: SchemaGraphProps
             type: col.type,
             primaryKey: col.primaryKey,
           })),
+          color: table.color,
+          onColorChange: onSchemaChange ? handleColorChange : undefined,
         },
         type: 'tableNode',
         draggable: nodesDraggable,
@@ -230,7 +292,7 @@ export default function SchemaGraph({ schema, onSchemaChange }: SchemaGraphProps
 
     setNodes(initialNodes);
     setEdges(initialEdges);
-  }, [schema, nodesDraggable]);
+  }, [schema, nodesDraggable, handleColorChange]);
 
   // Handle new connection attempt
   const onConnect = useCallback((connection: Connection) => {

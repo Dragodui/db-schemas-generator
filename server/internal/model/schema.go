@@ -8,13 +8,15 @@ import (
 )
 
 type Schema struct {
-	ID        int        `gorm:"autoIncrement;primaryKey" json:"id"`
-	UserID    int        `gorm:"not null;index" json:"user_id"`
-	Name      string     `gorm:"size:128;not null" json:"name"`
-	Data      SchemaData `gorm:"type:jsonb;not null" json:"data"`
-	IsPublic  bool       `gorm:"default:false" json:"is_public"`
-	CreatedAt time.Time  `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
+	ID         int        `gorm:"autoIncrement;primaryKey" json:"id"`
+	UserID     int        `gorm:"not null;index" json:"user_id"`
+	Name       string     `gorm:"size:128;not null" json:"name"`
+	Data       SchemaData `gorm:"type:jsonb;not null" json:"data"`
+	IsPublic   bool       `gorm:"default:false" json:"is_public"`
+	ShareToken string     `gorm:"size:64;uniqueIndex" json:"share_token,omitempty"`
+	ShareAccess string    `gorm:"size:16;default:none" json:"share_access"` // none, view, edit
+	CreatedAt  time.Time  `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt  time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 type SchemaData struct {
@@ -26,6 +28,7 @@ type Table struct {
 	Columns     []Column     `json:"columns"`
 	ForeignKeys []ForeignKey `json:"foreignKeys,omitempty"`
 	Engine      string       `json:"engine,omitempty"`
+	Color       string       `json:"color,omitempty"`
 }
 
 type Column struct {
@@ -40,10 +43,11 @@ type Column struct {
 }
 
 type ForeignKey struct {
-	Column     string    `json:"column"`
-	References Reference `json:"references"`
-	OnDelete   string    `json:"onDelete,omitempty"`
-	OnUpdate   string    `json:"onUpdate,omitempty"`
+	Column       string    `json:"column"`
+	References   Reference `json:"references"`
+	RelationType string    `json:"relationType,omitempty"`
+	OnDelete     string    `json:"onDelete,omitempty"`
+	OnUpdate     string    `json:"onUpdate,omitempty"`
 }
 
 type Reference struct {
